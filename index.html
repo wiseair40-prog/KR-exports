@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KR Exports — Data Explorer</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; }
+body { background: #f5f7fa; color: #1a1a2e; padding: 20px; min-height: 100vh; }
+.header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; flex-wrap: wrap; gap: 10px; }
+.title { font-size: 22px; font-weight: 700; color: #1a1a2e; }
+.title span { color: #16a34a; }
+.subtitle { font-size: 12px; color: #666; margin-top: 4px; }
+.sync-badge { font-size: 12px; font-weight: 600; padding: 6px 14px; border-radius: 20px; background: #fff; border: 1px solid #e8eaf0; }
+
+.fix-banner { background: #fff7ed; border: 2px solid #f97316; border-radius: 12px; padding: 16px 20px; margin-bottom: 16px; }
+.fix-banner h3 { color: #c2410c; font-size: 14px; margin-bottom: 10px; }
+.fix-banner ol { padding-left: 20px; font-size: 13px; color: #7c2d12; line-height: 2.4; }
+.steps-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.fix-step { background: #fff; border: 1px solid #fed7aa; border-radius: 8px; padding: 7px 14px; font-size: 12px; font-weight: 600; color: #ea580c; }
+.btn-retry { background: #f97316; color: #fff; border: none; border-radius: 8px; padding: 9px 22px; font-size: 13px; font-weight: 700; cursor: pointer; margin-top: 12px; }
+.btn-retry:hover { opacity: .85; }
+.status-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+.status-chip { font-size: 11px; padding: 3px 10px; border-radius: 12px; font-weight: 600; }
+.chip-ok    { background: #f0fdf4; color: #22c55e; }
+.chip-err   { background: #fef2f2; color: #ef4444; }
+.chip-empty { background: #fefce8; color: #ca8a04; }
+
+.section-label { font-size: 11px; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 1px; margin: 14px 0 7px; }
+
+/* Summary Cards */
+.cards { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+.card { background: #fff; border-radius: 12px; padding: 14px 16px; flex: 1; min-width: 130px; box-shadow: 0 1px 4px rgba(0,0,0,.08); border: 1px solid #e8eaf0; }
+.card.grp-pressure { border-top: 3px solid #6366f1; }
+.card.grp-flow     { border-top: 3px solid #0ea5e9; }
+.card.grp-dew      { border-top: 3px solid #22d3ee; }
+.card.grp-comp     { border-top: 3px solid #f97316; }
+.card .lbl { font-size: 10px; color: #888; text-transform: uppercase; letter-spacing: .4px; line-height: 1.4; }
+.card .val { font-size: 17px; font-weight: 700; color: #1a1a2e; margin: 5px 0 2px; }
+.card .rng { font-size: 10px; color: #bbb; }
+
+/* Filter Box */
+.fbox { background: #fff; border-radius: 12px; padding: 16px; margin-bottom: 14px; box-shadow: 0 1px 4px rgba(0,0,0,.08); border: 1px solid #e8eaf0; }
+.frow { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; margin-bottom: 12px; }
+.frow:last-child { margin-bottom: 0; }
+.fg label { font-size: 11px; color: #888; display: block; margin-bottom: 4px; text-transform: uppercase; letter-spacing: .5px; }
+.fg input, .fg select { background: #f5f7fa; border: 1px solid #dde1ec; color: #1a1a2e; padding: 7px 12px; border-radius: 8px; font-size: 13px; outline: none; min-width: 140px; }
+.fg input:focus, .fg select:focus { border-color: #16a34a; background: #fff; }
+.divider { width: 100%; height: 1px; background: #eef0f6; margin: 12px 0; }
+.btn { padding: 8px 18px; border-radius: 8px; border: none; cursor: pointer; font-size: 13px; font-weight: 600; transition: opacity .2s; }
+.btn:hover { opacity: .85; }
+.btn-primary { background: #16a34a; color: #fff; }
+.btn-outline  { background: transparent; border: 1px solid #ccc; color: #666; }
+.btn-export   { background: #0ea5e9; color: #fff; }
+.afl { font-size: 11px; color: #f59e0b; margin-top: 10px; }
+
+/* Param Toggles */
+.params { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 14px; }
+.pbtn { padding: 5px 14px; border-radius: 20px; border: 2px solid; font-size: 11px; font-weight: 600; cursor: pointer; transition: all .2s; }
+
+/* Charts */
+.charts { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+.cbox { background: #fff; border-radius: 12px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.08); border: 1px solid #e8eaf0; }
+.cbox.full { grid-column: 1 / -1; }
+.ctitle { font-size: 13px; font-weight: 600; margin-bottom: 12px; color: #444; display: flex; align-items: center; gap: 6px; }
+.ctitle .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+canvas { max-height: 220px; }
+
+/* Table */
+.tbox { background: #fff; border-radius: 12px; padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.08); border: 1px solid #e8eaf0; }
+.ttitle { font-size: 13px; font-weight: 600; color: #444; }
+.tscroll { overflow-x: auto; margin-top: 12px; }
+table { width: 100%; border-collapse: collapse; font-size: 11px; min-width: 1000px; }
+th { background: #f0fdf4; color: #15803d; padding: 9px 10px; text-align: left; border-bottom: 2px solid #bbf7d0; white-space: nowrap; font-weight: 600; }
+td { padding: 7px 10px; border-bottom: 1px solid #f0f2f8; color: #333; white-space: nowrap; }
+tr:hover td { background: #f0fdf4; }
+.ts-cell { color: #666; font-size: 10.5px; }
+
+/* Loaders */
+.loading { text-align: center; padding: 40px; color: #999; font-size: 14px; }
+.progress-bar  { background: #dcfce7; border-radius: 8px; height: 6px; margin: 8px 0; overflow: hidden; }
+.progress-fill { background: #16a34a; height: 100%; border-radius: 8px; transition: width .3s; }
+
+@media(max-width:768px){ .charts{ grid-template-columns:1fr } .cbox.full{ grid-column:1 } }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <div class="title">🌿 <span>KR Exports</span> — Data Explorer</div>
+    <div class="subtitle">Compressor · Pressure · Flow · Dew Point · Live from Google Sheets</div>
+  </div>
+  <span id="sync" class="sync-badge" style="color:#f59e0b">● Connecting...</span>
+</div>
+
+<!-- ERROR BANNER -->
+<div class="fix-banner" id="fixBanner" style="display:none">
+  <h3 id="bannerTitle">⚠️ Could not load data from Google Sheets</h3>
+  <ol>
+    <li>Open your Google Sheet: <strong>KR Exports</strong></li>
+    <li>Click <strong>Share</strong> (top-right corner)</li>
+    <li>Click <strong>"Change to anyone with the link"</strong></li>
+    <li>Set role to <strong>Viewer</strong> and click <strong>Done</strong></li>
+    <li>Return here and click <strong>Retry</strong></li>
+  </ol>
+  <div class="steps-row">
+    <div class="fix-step">① Open Sheet</div>
+    <div class="fix-step">② Share</div>
+    <div class="fix-step">③ Anyone with link</div>
+    <div class="fix-step">④ Viewer</div>
+    <div class="fix-step">⑤ Retry ↓</div>
+  </div>
+  <br>
+  <button class="btn-retry" onclick="doFetch()">🔄 Retry</button>
+  <div class="status-row" id="chipRow"></div>
+</div>
+
+<!-- Summary Cards -->
+<div class="section-label">📈 Key Averages (Filtered Data)</div>
+<div class="cards" id="cards"></div>
+
+<!-- Filters -->
+<div class="fbox">
+  <div class="frow">
+    <div class="fg"><label>📅 Date From</label><input type="date" id="from"></div>
+    <div class="fg"><label>📅 Date To</label><input type="date" id="to"></div>
+    <div class="fg">
+      <label>⚡ Quick Range</label>
+      <select id="qr" onchange="applyQuickRange()">
+        <option value="">Custom</option>
+        <option value="1">Today</option>
+        <option value="7">Last 7 Days</option>
+        <option value="30">Last 30 Days</option>
+        <option value="90">Last 90 Days</option>
+        <option value="all" selected>All Time</option>
+      </select>
+    </div>
+    <div class="fg">
+      <label>📊 Aggregation</label>
+      <select id="agg">
+        <option value="raw">Raw Data</option>
+        <option value="hourly">Hourly Avg</option>
+        <option value="daily" selected>Daily Avg</option>
+        <option value="monthly">Monthly Avg</option>
+      </select>
+    </div>
+  </div>
+  <div class="divider"></div>
+  <div class="frow">
+    <div class="fg">
+      <label>🔍 Filter Column</label>
+      <select id="fcol">
+        <option value="">None</option>
+        <optgroup label="── Pressure ──">
+          <option value="Before_Wet_Filter_Pressure">Before Wet Filter Pressure</option>
+          <option value="After_Wet_Filter_Pressure">After Wet Filter Pressure</option>
+          <option value="Before_Dryer_Pressure">Before Dryer Pressure</option>
+          <option value="After_Dryer_Pressure">After Dryer Pressure</option>
+          <option value="Spinning_Pressure">Spinning Pressure</option>
+        </optgroup>
+        <optgroup label="── Flow ──">
+          <option value="Compressor_Header_Flow">Compressor Header Flow</option>
+          <option value="Autoconer_Flow">Autoconer Flow</option>
+          <option value="Preparatory_Flow">Preparatory Flow</option>
+        </optgroup>
+        <optgroup label="── Other ──">
+          <option value="Dew_Point">Dew Point</option>
+        </optgroup>
+      </select>
+    </div>
+    <div class="fg">
+      <label>Condition</label>
+      <select id="fop">
+        <option value="gt">greater than</option>
+        <option value="lt">less than</option>
+        <option value="gte">≥ greater or equal</option>
+        <option value="lte">≤ less or equal</option>
+        <option value="eq">= equal to</option>
+      </select>
+    </div>
+    <div class="fg">
+      <label>Value</label>
+      <input type="number" id="fval" placeholder="e.g. 6.0" step="any" style="min-width:100px;max-width:120px">
+    </div>
+    <div class="fg" style="display:flex;gap:8px;align-items:flex-end">
+      <button class="btn btn-primary" onclick="applyFilters()">Apply</button>
+      <button class="btn btn-outline"  onclick="doReset()">Reset</button>
+      <button class="btn btn-export"   onclick="doExport()">⬇ Export CSV</button>
+    </div>
+  </div>
+  <div class="afl" id="afl"></div>
+</div>
+
+<!-- Param Toggles -->
+<div class="section-label">🔘 Toggle Parameters</div>
+<div class="params" id="params"></div>
+
+<!-- Charts -->
+<div class="charts">
+  <div class="cbox full">
+    <div class="ctitle"><span class="dot" style="background:#6366f1"></span>Pressure Trends</div>
+    <canvas id="pressureChart"></canvas>
+  </div>
+  <div class="cbox full">
+    <div class="ctitle"><span class="dot" style="background:#0ea5e9"></span>Flow Trends — Compressor Header · Autoconer · Preparatory</div>
+    <canvas id="flowChart"></canvas>
+  </div>
+  <div class="cbox">
+    <div class="ctitle"><span class="dot" style="background:#22d3ee"></span>Dew Point</div>
+    <canvas id="dewChart"></canvas>
+  </div>
+  <div class="cbox">
+    <div class="ctitle"><span class="dot" style="background:#f97316"></span>Compressor Header Flow vs Pressure</div>
+    <canvas id="compChart"></canvas>
+  </div>
+</div>
+
+<!-- Data Table -->
+<div class="tbox">
+  <span class="ttitle" id="ttitle">Data Table</span>
+  <div class="tscroll"><div id="table"><div class="loading">⏳ Waiting for data...</div></div></div>
+</div>
+
+<script>
+'use strict';
+
+// ═══════════════════════════════════════════════════════════════════
+//  CONFIG
+//  Single sheet — Sheet1 (gid=0)
+//  The sheet has ONE header row. Row 8 in the screenshot is a
+//  repeated frozen header that the CSV export will also include;
+//  the parser skips any row where the first cell is "Timestamp".
+//
+//  ➕ If new sheets/tabs are added later, add them to ALL_SHEETS:
+//  { name:'Sheet2', gid:'PASTE_GID_HERE' }
+// ═══════════════════════════════════════════════════════════════════
+var SHEET_ID = '13xlb7O1FRhOXvKmvJNv6JEDi0G-fOyxL-P672foYOTQ';
+
+var ALL_SHEETS = [
+  { name:'Sheet1', gid:'0' }
+  // ➕ Add new sheets here if more tabs are created later:
+  // { name:'Sheet2', gid:'PASTE_GID_HERE' },
+];
+
+// ═══════════════════════════════════════════════════════════════════
+//  COLUMN DEFINITIONS
+//  col = exact column header from the sheet
+// ═══════════════════════════════════════════════════════════════════
+var COL_DEFS = [
+  { key:'Before_Wet_Filter_Pressure', col:'Before_Wet_Filter_Pressure', label:'Before Wet Filter Pres', unit:'bar', color:'#6366f1', group:'pressure' },
+  { key:'After_Wet_Filter_Pressure',  col:'After_Wet_Filter_Pressure',  label:'After Wet Filter Pres',  unit:'bar', color:'#818cf8', group:'pressure' },
+  { key:'Compressor_Header_Flow',     col:'Compressor_Header_Flow',     label:'Compressor Header Flow', unit:'CFM', color:'#f97316', group:'flow'     },
+  { key:'Dew_Point',                  col:'Dew_Point',                  label:'Dew Point',              unit:'°C',  color:'#22d3ee', group:'dew'      },
+  { key:'Before_Dryer_Pressure',      col:'Before_Dryer_Pressure',      label:'Before Dryer Pres',      unit:'bar', color:'#a78bfa', group:'pressure' },
+  { key:'After_Dryer_Pressure',       col:'After_Dryer_Pressure',       label:'After Dryer Pres',       unit:'bar', color:'#7c3aed', group:'pressure' },
+  { key:'Spinning_Pressure',          col:'Spinning_Pressure',          label:'Spinning Pressure',      unit:'bar', color:'#4f46e5', group:'pressure' },
+  { key:'Autoconer_Flow',             col:'Autoconer_Flow',             label:'Autoconer Flow',         unit:'CFM', color:'#0ea5e9', group:'flow'     },
+  { key:'Preparatory_Flow',           col:'Preparatory_Flow',           label:'Preparatory Flow',       unit:'CFM', color:'#38bdf8', group:'flow'     }
+];
+
+// ═══════════════════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════════════════
+var activeParams = {};
+COL_DEFS.forEach(function(c){ activeParams[c.key] = true; });
+var sheetStat = {};
+var allData = [], filteredData = [];
+var pressureChart, flowChart, dewChart, compChart;
+
+// ═══════════════════════════════════════════════════════════════════
+//  TIMESTAMP PARSER — handles: "07/04/2026, 12:50:00" and variants
+// ═══════════════════════════════════════════════════════════════════
+function parseTS(str) {
+  if (!str) return null;
+  str = String(str).trim();
+  if (!str || str.toLowerCase() === 'timestamp') return null;
+
+  // DD/MM/YYYY, HH:MM:SS  or  MM/DD/YYYY, HH:MM:SS
+  var m = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})[,\s]+(\d{1,2}):(\d{2})(?::(\d{2}))?/);
+  if (m) {
+    // Detect format: if day > 12 then DD/MM/YYYY, else assume DD/MM/YYYY (as in screenshot)
+    var a = +m[1], b = +m[2], yr = +m[3], h = +m[4], mi = +m[5], s = +(m[6]||0);
+    // Screenshot shows 07/04/2026 = 7th April 2026 → DD/MM/YYYY
+    return new Date(yr, b-1, a, h, mi, s);
+  }
+  // M/D/YY HH:MM
+  var m2 = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2})\s+(\d{1,2}):(\d{2})/);
+  if (m2) {
+    var yr2 = parseInt(m2[3]); if (yr2 < 100) yr2 += 2000;
+    return new Date(yr2, +m2[2]-1, +m2[1], +m2[4], +m2[5]);
+  }
+  // YYYY-MM-DDTHH:MM
+  var m3 = str.match(/^(\d{4})-(\d{2})-(\d{2})[T\s](\d{2}):(\d{2})/);
+  if (m3) return new Date(+m3[1], +m3[2]-1, +m3[3], +m3[4], +m3[5]);
+
+  var d = new Date(str);
+  return isNaN(d) ? null : d;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  CSV PARSER
+//  Handles repeated header rows (skips any row where col[0]==="Timestamp")
+// ═══════════════════════════════════════════════════════════════════
+function splitLine(line) {
+  var res=[], cur='', inQ=false;
+  for (var i=0; i<line.length; i++) {
+    var c=line[i];
+    if (c==='"') { inQ=!inQ; }
+    else if (c===',' && !inQ) { res.push(cur); cur=''; }
+    else { cur+=c; }
+  }
+  res.push(cur);
+  return res.map(function(v){ return v.replace(/^"|"$/g,'').trim(); });
+}
+
+function parseCSV(csv, sheetName) {
+  var lines = csv.replace(/\r/g,'').split('\n');
+  if (lines.length < 2) return [];
+
+  // Find header row (first row containing "Timestamp")
+  var headerIdx = -1, headers = [];
+  for (var i=0; i<Math.min(lines.length,5); i++) {
+    var cells = splitLine(lines[i]);
+    if (cells[0].toLowerCase().includes('timestamp')) { headerIdx=i; headers=cells; break; }
+  }
+  if (headerIdx < 0) { headers=splitLine(lines[0]); headerIdx=0; }
+
+  // Map col header → index (case-insensitive + underscore-tolerant)
+  function normalize(s){ return s.toLowerCase().replace(/[\s_]+/g,'_'); }
+  var colIdx={};
+  headers.forEach(function(h,i){ colIdx[normalize(h)]=i; });
+
+  var tsIdx = colIdx[normalize('Timestamp')];
+  if (tsIdx === undefined) tsIdx = 0;
+
+  var colMap={};
+  COL_DEFS.forEach(function(cd){
+    var nk = normalize(cd.col);
+    if (colIdx[nk] !== undefined) { colMap[cd.key]=colIdx[nk]; return; }
+    // Try partial match
+    Object.keys(colIdx).forEach(function(h){
+      if (h.includes(nk) || nk.includes(h)) colMap[cd.key]=colIdx[h];
+    });
+  });
+
+  var rows=[];
+  for (var i=headerIdx+1; i<lines.length; i++) {
+    if (!lines[i].trim()) continue;
+    var cells = splitLine(lines[i]);
+    var tsStr = cells[tsIdx]||'';
+    // Skip repeated header rows
+    if (tsStr.toLowerCase().includes('timestamp')) continue;
+    if (!tsStr.trim()) continue;
+    var ts = parseTS(tsStr);
+    if (!ts || isNaN(ts)) continue;
+
+    var obj={ _source:sheetName, _ts:ts };
+    COL_DEFS.forEach(function(cd){
+      var idx=colMap[cd.key];
+      if (idx===undefined){ obj[cd.key]=null; return; }
+      var raw=cells[idx]!==undefined?cells[idx]:'';
+      var n=parseFloat(raw);
+      obj[cd.key]=isNaN(n)?null:n;
+    });
+    rows.push(obj);
+  }
+  return rows;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  FETCH — gviz/tq CSV (CORS-safe for GitHub Pages) + CSV fallback
+// ═══════════════════════════════════════════════════════════════════
+function fetchSheet(sheet) {
+  var gvizUrl = 'https://docs.google.com/spreadsheets/d/'+SHEET_ID+
+    '/gviz/tq?tqx=out:csv&gid='+sheet.gid+'&_='+Date.now();
+
+  return fetch(gvizUrl, { mode:'cors', cache:'no-store' })
+    .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.text(); })
+    .then(function(csv){
+      if (!csv || csv.trim().charAt(0)==='<') throw new Error('PERMISSION_DENIED');
+      var rows = parseCSV(csv, sheet.name);
+      sheetStat[sheet.name] = rows.length>0?'ok':'empty';
+      return rows;
+    })
+    .catch(function(){
+      var csvUrl='https://docs.google.com/spreadsheets/d/'+SHEET_ID+
+        '/export?format=csv&gid='+sheet.gid+'&_='+Date.now();
+      return fetch(csvUrl,{cache:'no-store'})
+        .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.text(); })
+        .then(function(csv){
+          if (!csv||csv.trim().charAt(0)==='<') throw new Error('PERMISSION_DENIED');
+          var rows=parseCSV(csv,sheet.name);
+          sheetStat[sheet.name]=rows.length>0?'ok':'empty';
+          return rows;
+        })
+        .catch(function(e){
+          sheetStat[sheet.name]='fail:'+e.message;
+          console.warn('['+sheet.name+']',e.message);
+          return [];
+        });
+    });
+}
+
+function doFetch() {
+  document.getElementById('sync').textContent='● Fetching...';
+  document.getElementById('sync').style.color='#f59e0b';
+  document.getElementById('fixBanner').style.display='none';
+  document.getElementById('table').innerHTML=
+    '<div class="loading">⏳ Connecting to Google Sheets…'+
+    '<div style="font-size:11px;color:#aaa;margin-top:10px" id="progLabel">Starting…</div>'+
+    '<div class="progress-bar"><div class="progress-fill" id="progFill" style="width:0%"></div></div></div>';
+
+  allData=[]; sheetStat={};
+  var total=ALL_SHEETS.length, done=0;
+
+  Promise.all(ALL_SHEETS.map(function(s){
+    return fetchSheet(s).then(function(rows){
+      done++;
+      var lbl=document.getElementById('progLabel'), fill=document.getElementById('progFill');
+      if(lbl) lbl.textContent='Loaded: '+s.name+' ('+rows.length+' rows)';
+      if(fill) fill.style.width=Math.round(done/total*100)+'%';
+      return {name:s.name,rows:rows};
+    });
+  })).then(function(results){
+    var seen={};
+    results.forEach(function(r){
+      r.rows.forEach(function(row){
+        var k=row._source+'_'+(row._ts?row._ts.getTime():Math.random());
+        if(!seen[k]){seen[k]=true;allData.push(row);}
+      });
+    });
+    allData.sort(function(a,b){return (a._ts||0)-(b._ts||0);});
+
+    var fails=Object.keys(sheetStat).filter(function(k){return sheetStat[k].startsWith('fail');});
+    var oks  =Object.keys(sheetStat).filter(function(k){return sheetStat[k]==='ok';});
+
+    if (allData.length===0) {
+      document.getElementById('fixBanner').style.display='block';
+      document.getElementById('bannerTitle').textContent=
+        '⚠️ No data loaded. Make the sheet public — follow steps below:';
+      renderChips();
+      document.getElementById('sync').textContent='● Failed';
+      document.getElementById('sync').style.color='#ef4444';
+      document.getElementById('table').innerHTML=
+        '<div class="loading" style="color:#ef4444">❌ No data. Make your Google Sheet public — see orange banner above.</div>';
+    } else {
+      document.getElementById('sync').textContent=
+        '● Synced · '+allData.length+' rows · '+oks.length+'/'+total+' sheets OK';
+      document.getElementById('sync').style.color=fails.length===0?'#22c55e':'#f59e0b';
+      if(fails.length>0){
+        document.getElementById('fixBanner').style.display='block';
+        document.getElementById('bannerTitle').textContent=
+          '⚠️ '+fails.length+' sheet(s) could not load. Data may be partial.';
+        renderChips();
+      }
+    }
+    buildCards(); buildParamButtons(); applyFilters();
+  });
+}
+
+function renderChips(){
+  document.getElementById('chipRow').innerHTML=ALL_SHEETS.map(function(s){
+    var st=sheetStat[s.name]||'pending';
+    var cls=st==='ok'?'chip-ok':st.startsWith('fail')?'chip-err':'chip-empty';
+    return '<span class="status-chip '+cls+'">'+(st==='ok'?'✓ ':st.startsWith('fail')?'✗ ':'~ ')+s.name+'</span>';
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  HELPERS
+// ═══════════════════════════════════════════════════════════════════
+function fmtTS(ts){
+  if(!ts) return '—';
+  var d=(ts instanceof Date)?ts:new Date(ts);
+  if(isNaN(d)) return String(ts);
+  return d.getDate().toString().padStart(2,'0')+'/'+
+    (d.getMonth()+1).toString().padStart(2,'0')+'/'+d.getFullYear()+' '+
+    d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0');
+}
+function num(v){ var n=parseFloat(v); return isNaN(n)?null:n; }
+
+// ═══════════════════════════════════════════════════════════════════
+//  UI BUILDERS
+// ═══════════════════════════════════════════════════════════════════
+function buildParamButtons(){
+  var div=document.getElementById('params'); div.innerHTML='';
+  COL_DEFS.forEach(function(p){
+    var btn=document.createElement('button');
+    btn.className='pbtn'; btn.textContent=p.label;
+    btn.style.cssText='border-color:'+p.color+';background:'+p.color+';color:#fff';
+    btn.onclick=(function(key,color,b){
+      return function(){
+        activeParams[key]=!activeParams[key];
+        b.style.background=activeParams[key]?color:'transparent';
+        b.style.color=activeParams[key]?'#fff':color;
+        renderAll(aggregate(filteredData));
+      };
+    })(p.key,p.color,btn);
+    div.appendChild(btn);
+  });
+}
+
+function buildCards(){
+  var div=document.getElementById('cards'); div.innerHTML='';
+  var defs=[
+    {key:'Before_Wet_Filter_Pressure', label:'Before Wet Filter',    unit:'bar', cls:'grp-pressure'},
+    {key:'After_Wet_Filter_Pressure',  label:'After Wet Filter',     unit:'bar', cls:'grp-pressure'},
+    {key:'Before_Dryer_Pressure',      label:'Before Dryer Pres',    unit:'bar', cls:'grp-pressure'},
+    {key:'After_Dryer_Pressure',       label:'After Dryer Pres',     unit:'bar', cls:'grp-pressure'},
+    {key:'Spinning_Pressure',          label:'Spinning Pressure',    unit:'bar', cls:'grp-pressure'},
+    {key:'Compressor_Header_Flow',     label:'Compressor Flow',      unit:'CFM', cls:'grp-flow'},
+    {key:'Autoconer_Flow',             label:'Autoconer Flow',       unit:'CFM', cls:'grp-flow'},
+    {key:'Preparatory_Flow',           label:'Preparatory Flow',     unit:'CFM', cls:'grp-flow'},
+    {key:'Dew_Point',                  label:'Dew Point',            unit:'°C',  cls:'grp-dew'},
+  ];
+  defs.forEach(function(d){
+    var c=document.createElement('div'); c.className='card '+d.cls;
+    c.innerHTML='<div class="lbl">'+d.label+'</div>'+
+                '<div class="val" id="cv_'+d.key+'">—</div>'+
+                '<div class="rng" id="cr_'+d.key+'"></div>';
+    div.appendChild(c);
+  });
+  window._cardDefs=defs;
+}
+
+function updateCards(data){
+  if(!window._cardDefs) return;
+  window._cardDefs.forEach(function(d){
+    var vals=data.map(function(r){return num(r[d.key]);}).filter(function(v){return v!==null;});
+    var av=document.getElementById('cv_'+d.key), rg=document.getElementById('cr_'+d.key);
+    if(!av) return;
+    if(!vals.length){av.textContent='—';if(rg)rg.textContent='';return;}
+    var avg=vals.reduce(function(a,b){return a+b;},0)/vals.length;
+    av.textContent=avg.toFixed(3)+' '+d.unit;
+    if(rg) rg.textContent='Min '+Math.min.apply(null,vals).toFixed(3)+' · Max '+Math.max.apply(null,vals).toFixed(3);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  FILTER
+// ═══════════════════════════════════════════════════════════════════
+function applyFilters(){
+  var from=document.getElementById('from').value;
+  var to=document.getElementById('to').value;
+  var col=document.getElementById('fcol').value;
+  var op=document.getElementById('fop').value;
+  var val=parseFloat(document.getElementById('fval').value);
+
+  filteredData=allData.filter(function(row){
+    if(from||to){
+      var ts=row._ts; if(!ts) return false;
+      if(from && ts<new Date(from)) return false;
+      if(to   && ts>new Date(to+'T23:59:59')) return false;
+    }
+    if(col&&!isNaN(val)){
+      var rv=num(row[col]); if(rv===null) return false;
+      if(op==='gt' &&rv<=val)return false;
+      if(op==='lt' &&rv>=val)return false;
+      if(op==='gte'&&rv< val)return false;
+      if(op==='lte'&&rv> val)return false;
+      if(op==='eq' &&rv!==val)return false;
+    }
+    return true;
+  });
+
+  updateActiveLabel();
+  var d=aggregate(filteredData);
+  updateCards(d); renderAll(d); renderTable(d);
+}
+
+function updateActiveLabel(){
+  var parts=[];
+  var from=document.getElementById('from').value, to=document.getElementById('to').value;
+  if(from||to) parts.push('Date: '+(from||'…')+' → '+(to||'…'));
+  var col=document.getElementById('fcol').value, val=document.getElementById('fval').value;
+  var opL={gt:'>',lt:'<',gte:'>=',lte:'<=',eq:'='};
+  if(col&&val) parts.push(col+' '+opL[document.getElementById('fop').value]+' '+val);
+  document.getElementById('afl').textContent=parts.length?'🔍 Active filter: '+parts.join(' | '):'';
+}
+
+function applyQuickRange(){
+  var v=document.getElementById('qr').value;
+  if(!v||v==='all'){
+    document.getElementById('from').value=''; document.getElementById('to').value='';
+    if(allData.length) applyFilters(); return;
+  }
+  var to=new Date(), fr=new Date(); fr.setDate(fr.getDate()-parseInt(v));
+  document.getElementById('to').value=to.toISOString().split('T')[0];
+  document.getElementById('from').value=fr.toISOString().split('T')[0];
+  if(allData.length) applyFilters();
+}
+
+function doReset(){
+  document.getElementById('qr').value='all'; document.getElementById('agg').value='daily';
+  document.getElementById('fcol').value=''; document.getElementById('fval').value='';
+  document.getElementById('from').value=''; document.getElementById('to').value='';
+  document.getElementById('afl').textContent='';
+  applyFilters();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  AGGREGATION
+// ═══════════════════════════════════════════════════════════════════
+function aggregate(data){
+  var mode=document.getElementById('agg').value;
+  if(mode==='raw') return data;
+  var groups={};
+  data.forEach(function(row){
+    var ts=row._ts; if(!ts) return;
+    var key;
+    if(mode==='hourly'){
+      key=ts.getFullYear()+'-'+pad(ts.getMonth()+1)+'-'+pad(ts.getDate())+' '+pad(ts.getHours())+':00';
+    } else if(mode==='daily'){
+      key=ts.getFullYear()+'-'+pad(ts.getMonth()+1)+'-'+pad(ts.getDate());
+    } else {
+      key=ts.getFullYear()+'-'+pad(ts.getMonth()+1);
+    }
+    if(!groups[key]) groups[key]=[];
+    groups[key].push(row);
+  });
+
+  return Object.keys(groups).sort().map(function(k){
+    var rows=groups[k];
+    var avgRow={_source:rows[0]._source,_ts:rows[0]._ts,_label:k};
+    COL_DEFS.forEach(function(cd){
+      var vals=rows.map(function(r){return num(r[cd.key]);}).filter(function(v){return v!==null;});
+      avgRow[cd.key]=vals.length?vals.reduce(function(a,b){return a+b;},0)/vals.length:null;
+    });
+    return avgRow;
+  });
+}
+function pad(n){ return String(n).padStart(2,'0'); }
+
+// ═══════════════════════════════════════════════════════════════════
+//  CHARTS
+// ═══════════════════════════════════════════════════════════════════
+function renderAll(data){
+  var labels=data.map(function(r){ return r._label||(r._ts&&!isNaN(r._ts)?fmtTS(r._ts):String(r._source||'')); });
+
+  function mkDS(key,color,yAxis){
+    var cd=COL_DEFS.filter(function(c){return c.key===key;})[0];
+    return {
+      label:cd?cd.label:key,
+      data:data.map(function(r){return num(r[key]);}),
+      borderColor:color, backgroundColor:color+'33',
+      borderWidth:2, pointRadius:data.length>200?0:2, tension:0.3, yAxisID:yAxis
+    };
+  }
+  var xS={ticks:{color:'#999',maxTicksLimit:14},grid:{color:'#eee'}};
+  var yL={type:'linear',position:'left', ticks:{color:'#999'},grid:{color:'#eee'}};
+  var yR={type:'linear',position:'right',ticks:{color:'#999'},grid:{drawOnChartArea:false}};
+  function opts(sc){return{responsive:true,maintainAspectRatio:true,animation:false,
+    plugins:{legend:{labels:{color:'#555',font:{size:10}}}},scales:sc};}
+
+  // Pressure Chart
+  if(pressureChart){pressureChart.destroy();pressureChart=null;}
+  var pd=[];
+  if(activeParams.Before_Wet_Filter_Pressure) pd.push(mkDS('Before_Wet_Filter_Pressure','#6366f1','y'));
+  if(activeParams.After_Wet_Filter_Pressure)  pd.push(mkDS('After_Wet_Filter_Pressure', '#818cf8','y'));
+  if(activeParams.Before_Dryer_Pressure)      pd.push(mkDS('Before_Dryer_Pressure',     '#a78bfa','y'));
+  if(activeParams.After_Dryer_Pressure)       pd.push(mkDS('After_Dryer_Pressure',      '#7c3aed','y1'));
+  if(activeParams.Spinning_Pressure)          pd.push(mkDS('Spinning_Pressure',          '#4f46e5','y1'));
+  pressureChart=new Chart(document.getElementById('pressureChart'),
+    {type:'line',data:{labels:labels,datasets:pd},options:opts({y:yL,y1:yR,x:xS})});
+
+  // Flow Chart
+  if(flowChart){flowChart.destroy();flowChart=null;}
+  var fd=[];
+  if(activeParams.Compressor_Header_Flow) fd.push(mkDS('Compressor_Header_Flow','#f97316','y'));
+  if(activeParams.Autoconer_Flow)         fd.push(mkDS('Autoconer_Flow',        '#0ea5e9','y1'));
+  if(activeParams.Preparatory_Flow)       fd.push(mkDS('Preparatory_Flow',      '#38bdf8','y1'));
+  flowChart=new Chart(document.getElementById('flowChart'),
+    {type:'line',data:{labels:labels,datasets:fd},options:opts({y:yL,y1:yR,x:xS})});
+
+  // Dew Point
+  if(dewChart){dewChart.destroy();dewChart=null;}
+  var dd=[];
+  if(activeParams.Dew_Point) dd.push(mkDS('Dew_Point','#22d3ee','y'));
+  dewChart=new Chart(document.getElementById('dewChart'),
+    {type:'line',data:{labels:labels,datasets:dd},options:opts({y:yL,x:xS})});
+
+  // Combo: Compressor Flow + After Dryer Pressure
+  if(compChart){compChart.destroy();compChart=null;}
+  var cd2=[];
+  if(activeParams.Compressor_Header_Flow) cd2.push(mkDS('Compressor_Header_Flow','#f97316','y'));
+  if(activeParams.After_Dryer_Pressure)   cd2.push(mkDS('After_Dryer_Pressure',  '#7c3aed','y1'));
+  compChart=new Chart(document.getElementById('compChart'),
+    {type:'line',data:{labels:labels,datasets:cd2},options:opts({y:yL,y1:yR,x:xS})});
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  TABLE
+// ═══════════════════════════════════════════════════════════════════
+function renderTable(data){
+  var show=data.slice(0,500);
+  document.getElementById('ttitle').textContent=
+    'Data — showing '+show.length+' of '+data.length+' records';
+  var html='<table><tr><th>Timestamp</th>'+
+    COL_DEFS.map(function(cd){return'<th>'+cd.label+' ('+cd.unit+')</th>';}).join('')+'</tr>';
+  show.forEach(function(row){
+    html+='<tr><td class="ts-cell">'+fmtTS(row._ts)+'</td>';
+    html+=COL_DEFS.map(function(cd){
+      var v=row[cd.key];
+      return'<td>'+(v!==null&&v!==undefined?(typeof v==='number'?v.toFixed(3):v):'—')+'</td>';
+    }).join('');
+    html+='</tr>';
+  });
+  document.getElementById('table').innerHTML=html+'</table>';
+}
+
+function doExport(){
+  var data=aggregate(filteredData);
+  var hdr=['Timestamp'].concat(COL_DEFS.map(function(c){return c.label+' ('+c.unit+')';}));
+  var csv=hdr.join(',')+'\n';
+  data.forEach(function(row){
+    var line=['"'+fmtTS(row._ts)+'"'].concat(COL_DEFS.map(function(cd){
+      var v=row[cd.key]; return(v!==null&&v!==undefined)?v.toFixed(3):'';
+    }));
+    csv+=line.join(',')+'\n';
+  });
+  var a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+  a.download='kr_exports_data.csv'; a.click();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════════════════
+buildCards(); buildParamButtons(); doFetch();
+</script>
+</body>
+</html>
